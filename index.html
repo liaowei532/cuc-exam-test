@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>文史哲通识 v3.4</title>
+    <title>文史哲通识 v3.5</title>
     <style>
         /* --- 设计系统 --- */
         :root {
@@ -16,7 +16,6 @@
             --text-main: #1D1D1F;
             --text-sub: #86868B;
             --divider: rgba(0, 0, 0, 0.05);
-            /* 更加丝滑的动画曲线 */
             --ease-fluid: cubic-bezier(0.25, 0.46, 0.45, 0.94);
             --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
         }
@@ -28,7 +27,7 @@
             font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
             background: var(--bg-body);
             color: var(--text-main);
-            height: 100dvh; /* 适配移动端动态高度 */
+            height: 100dvh;
             display: flex;
             justify-content: center;
             overflow: hidden;
@@ -65,12 +64,11 @@
             border-bottom: 1px solid var(--divider); 
             background: rgba(255,255,255,0.5);
             z-index: 100;
-            position: relative; /* 为绝对定位的标题做参照 */
+            position: relative; 
         }
         .nav-btn { cursor: pointer; padding: 10px; color: var(--accent); font-weight: 500; transition:0.2s; z-index: 2; }
         .nav-btn:active { opacity: 0.5; }
         
-        /* 标题绝对居中 */
         .nav-title { 
             position: absolute; left: 50%; top: 50%; 
             transform: translate(-50%, -50%); 
@@ -83,7 +81,6 @@
             overflow-y: auto; overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
             opacity: 0; pointer-events: none; transform: scale(0.96);
-            /* 优化后的转场动画 */
             transition: opacity 0.4s var(--ease-fluid), transform 0.4s var(--ease-fluid);
         }
         .view-container.active { opacity: 1; pointer-events: auto; transform: scale(1); z-index: 10; }
@@ -137,7 +134,7 @@
 
         .option.correct { background: rgba(52, 199, 89, 0.1); border-color: var(--success); color: #006400; transform: none; }
         .option.wrong { background: rgba(255, 59, 48, 0.1); border-color: var(--error); color: #8B0000; transform: none; }
-        .option.disabled { pointer-events: none; opacity: 0.8; }
+        .option.disabled { pointer-events: none; } /* 复盘时移除透明度，保持清晰 */
 
         .quiz-footer {
             position: absolute; bottom: 0; left: 0; right: 0;
@@ -178,14 +175,14 @@
         
         .gallery-container { 
             flex: 1; position: relative; width: 100%; overflow: hidden; 
-            touch-action: pan-y pinch-zoom; /* 允许垂直滚动，禁止水平浏览器手势 */
+            touch-action: pan-y pinch-zoom;
         }
         .review-card {
             position: absolute; top: 10px; bottom: 20px; left: 20px; right: 20px;
             background: #fff; border-radius: 28px; padding: 30px;
             box-shadow: 0 10px 40px -10px rgba(0,0,0,0.15);
             display: flex; flex-direction: column;
-            transition: 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); /* 优化切换速度 */
+            transition: 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
             opacity: 0; transform: translateX(100%) scale(0.95);
         }
         .review-card.active { opacity: 1; transform: translateX(0) scale(1); z-index: 2; }
@@ -271,7 +268,7 @@
             <input type="file" id="fileInput" accept=".json" style="display:none" onchange="importFile(this)">
         </div>
         
-        <div class="version-tag">Version 3.4 Touch</div>
+        <div class="version-tag">Version 3.5 Review Pro</div>
     </div>
 
     <div id="view-quiz" class="view-container">
@@ -358,14 +355,12 @@
     let REVIEW = { list:[], idx:0 };
     let STATE = { homeFocus: 0, isConfirming: false };
 
-    /* --- 初始化 --- */
     window.onload = () => {
         fetch(QUESTION_FILE + '?t=' + Date.now()).then(r=>r.json()).then(d=>initDB(d)).catch(()=>{
-            const c = localStorage.getItem('cuc_db_v3_4');
+            const c = localStorage.getItem('cuc_db_v3_5');
             if(c) initDB(JSON.parse(c));
         });
 
-        // 键盘监听
         document.addEventListener('keydown', (e) => {
             const isHome = document.getElementById('view-home').classList.contains('active');
             const isQuiz = document.getElementById('view-quiz').classList.contains('active');
@@ -432,14 +427,13 @@
             }
         });
 
-        // 手势监听 (新增核心功能)
         const stage = document.getElementById('view-result');
         let ts = 0;
         stage.addEventListener('touchstart', e => ts = e.touches[0].clientX);
         stage.addEventListener('touchend', e => {
             let te = e.changedTouches[0].clientX;
-            if (ts - te > 50) moveGallery(1); // 左滑 -> 下一题
-            if (te - ts > 50) moveGallery(-1); // 右滑 -> 上一题
+            if (ts - te > 50) moveGallery(1);
+            if (te - ts > 50) moveGallery(-1);
         });
     };
 
@@ -451,7 +445,7 @@
 
     function initDB(data) {
         DB = data;
-        localStorage.setItem('cuc_db_v3_4', JSON.stringify(DB));
+        localStorage.setItem('cuc_db_v3_5', JSON.stringify(DB));
         document.getElementById('statusText').innerText = `✅ 已加载 ${DB.length} 题`;
         document.getElementById('statusText').style.color = '#34C759';
     }
@@ -666,26 +660,48 @@
     function initGallery() {
         const stage = document.getElementById('galleryStage');
         const select = document.getElementById('pageSelect');
-        stage.innerHTML = REVIEW.list.map((d, i) => `
+        stage.innerHTML = REVIEW.list.map((d, i) => {
+            // 生成选项列表 HTML
+            const optionsHtml = d.q.options.map((opt, k) => {
+                let txt = opt.includes('.') ? opt.split('.')[1] : opt;
+                let cls = 'option disabled'; // 复用样式，但不可点击
+                
+                // 标记逻辑
+                if (k === d.q.answer) cls += ' correct'; // 正确答案标绿
+                else if (d.my === k) cls += ' wrong';    // 错选标红 (如果选对了，k===answer已处理)
+                
+                return `<div class="${cls}" style="margin-bottom:8px; padding:12px 16px; font-size:0.95rem">
+                    <span style="font-weight:700; margin-right:10px">${String.fromCharCode(65+k)}.</span>${txt}
+                </div>`;
+            }).join('');
+
+            return `
             <div class="review-card" id="card-${i}">
                 <div style="color:var(--text-sub); font-size:0.9rem; margin-bottom:10px; display:flex; justify-content:space-between">
                     <span>第 ${d.idx} 题</span>
                     <span>${d.isRight ? '🟢 正确' : '🔴 错误'}</span>
                 </div>
-                <div style="font-size:1.15rem; font-weight:700; margin-bottom:20px; line-height:1.5">${d.q.q}</div>
-                <div style="flex:1; overflow-y:auto">
-                    <div style="background:#F2F2F7; padding:12px; border-radius:12px; margin-bottom:15px; font-size:0.95rem">
-                        <span style="color:var(--text-sub)">你的选择：</span>
-                        <span style="font-weight:600; color:${d.isRight?'#34C759':'#FF3B30'}">
-                            ${d.my===undefined?'未作答':d.q.options[d.my]}
-                        </span>
+                <div style="font-size:1.1rem; font-weight:700; margin-bottom:15px; line-height:1.4">${d.q.q}</div>
+                
+                <div style="flex:1; overflow-y:auto; padding-right:4px">
+                    <div style="margin-bottom:20px">
+                        ${optionsHtml}
                     </div>
-                    <div style="border-top:1px dashed #ccc; padding-top:15px; font-size:0.95rem; line-height:1.6; color:#333">
-                        <strong style="color:#34C759">✅ 解析：</strong><br>${d.q.analysis}
+
+                    <div style="border-top:1px dashed #E5E5EA; padding-top:20px;">
+                        <div style="margin-bottom:8px; font-size:0.9rem; color:var(--text-sub)">
+                            你的选择：<span style="color:${d.isRight?'#34C759':'#FF3B30'}; font-weight:600">
+                                ${d.my===undefined?'未作答':String.fromCharCode(65+d.my)}
+                            </span>
+                        </div>
+                        <div style="background:#F9F9F9; padding:15px; border-radius:12px; font-size:0.95rem; line-height:1.6; color:#333">
+                            <strong style="color:#34C759">💡 解析：</strong><br>${d.q.analysis}
+                        </div>
                     </div>
                 </div>
             </div>
-        `).join('');
+        `}).join('');
+        
         select.innerHTML = REVIEW.list.map((d, i) => `<option value="${i}">第 ${d.idx} 题 ${d.isRight?'✓':'✗'}</option>`).join('');
         REVIEW.idx = 0;
         updateGalleryUI();
