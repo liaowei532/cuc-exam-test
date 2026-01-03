@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>文史哲通识模拟 v3.2</title>
+    <title>文史哲通识 v3.3</title>
     <style>
         /* --- 设计系统 --- */
         :root {
@@ -27,10 +27,12 @@
             font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
             background: var(--bg-body);
             color: var(--text-main);
-            height: 100vh;
+            /* 关键修复：使用 dvh 适应移动端动态高度 */
+            height: 100dvh;
+            width: 100vw;
             display: flex;
             justify-content: center;
-            overflow: hidden;
+            overflow: hidden; /* 禁止因内容过多导致的整体页面滚动 */
             background-image: radial-gradient(circle at 100% 0%, rgba(0,122,255,0.06) 0%, transparent 40%);
         }
 
@@ -39,7 +41,7 @@
             max-width: 600px;
             height: 100%;
             display: flex;
-            flex-direction: column;
+            flex-direction: column; /* 垂直排列 */
             position: relative;
             background: rgba(255,255,255,0.6);
             backdrop-filter: blur(40px);
@@ -48,7 +50,7 @@
         }
 
         @media (min-width: 601px) {
-            body { align-items: center; padding: 20px; }
+            body { align-items: center; padding: 20px; height: 100vh; }
             .app-shell { height: 92vh; border-radius: 40px; border: 1px solid rgba(255,255,255,0.5); overflow: hidden; }
         }
 
@@ -58,31 +60,46 @@
 
         /* --- 组件 --- */
         .navbar {
-            flex-shrink: 0;
+            flex-shrink: 0; /* 禁止压缩 */
             height: 60px; padding: 0 20px;
             display: flex; align-items: center; justify-content: space-between;
-            border-bottom: 1px solid var(--divider); z-index: 100;
+            border-bottom: 1px solid var(--divider); 
             background: rgba(255,255,255,0.5);
+            z-index: 100;
         }
         .nav-btn { cursor: pointer; padding: 10px; color: var(--accent); font-weight: 500; transition:0.2s; }
         .nav-btn:active { opacity: 0.5; }
         .nav-title { font-weight: 600; font-size: 1.1rem; }
 
+        /* 关键修复：视图容器 */
         .view-container {
-            position: absolute; inset: 60px 0 0 0; padding: 20px;
-            overflow-y: auto; overflow-x: hidden;
-            opacity: 0; pointer-events: none; transform: scale(0.98);
-            transition: 0.4s var(--ease-fluid);
+            flex: 1; /* 自动占据剩余空间 */
+            position: relative; /* 改回相对定位，配合 display:none 切换 */
+            width: 100%;
+            height: 100%;
+            overflow-y: auto; /* 允许内部滚动 */
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch; /* iOS 惯性滚动 */
+            padding: 20px;
+            /* 底部留白，防止内容被解析面板或底部栏遮挡 */
+            padding-bottom: 120px; 
+            display: none; /* 默认隐藏 */
+            opacity: 0; transform: scale(0.98);
+            transition: opacity 0.3s var(--ease-fluid), transform 0.3s var(--ease-fluid);
         }
-        .view-container.active { opacity: 1; pointer-events: auto; transform: scale(1); z-index: 10; }
+        .view-container.active { 
+            display: block; /* 激活时显示 */
+            opacity: 1; transform: scale(1); 
+        }
+        /* 结果页特殊处理：使用 Flex 布局 */
+        #view-result.active { display: flex; flex-direction: column; padding: 0; }
 
         /* --- 首页 --- */
-        .hero { text-align: center; padding: 50px 0 30px; position: relative; }
+        .hero { text-align: center; padding: 40px 0 20px; position: relative; }
         .hero-icon { font-size: 4.5rem; display: inline-block; animation: wave 4s ease-in-out infinite; margin-bottom: 15px; }
         .version-tag {
-            position: absolute; bottom: 20px; left: 0; right: 0;
             text-align: center; color: #BBB; font-size: 0.8rem; font-family: "SF Mono", monospace;
-            pointer-events: none;
+            margin-top: 40px; padding-bottom: 40px;
         }
         
         .mode-card {
@@ -99,7 +116,8 @@
         .mode-icon { font-size: 2rem; }
 
         /* --- 答题页 --- */
-        .question-box { margin-bottom: 120px; animation: fadeIn 0.4s var(--ease-fluid); }
+        /* 移除绝对定位和过大的 margin，完全依赖 flex 布局 */
+        .question-box { animation: fadeIn 0.4s var(--ease-fluid); }
         .q-meta { display: flex; justify-content: space-between; margin-bottom: 20px; color: var(--text-sub); font-size: 0.9rem; font-weight: 600; }
         .q-text { font-size: 1.25rem; font-weight: 700; line-height: 1.5; margin-bottom: 30px; }
         
@@ -127,20 +145,29 @@
         .option.wrong { background: rgba(255, 59, 48, 0.1); border-color: var(--error); color: #8B0000; transform: none; }
         .option.disabled { pointer-events: none; opacity: 0.8; }
 
+        /* 底部控制栏 - 关键修复 */
         .quiz-footer {
-            position: absolute; bottom: 0; left: 0; right: 0;
-            height: 90px; background: rgba(255,255,255,0.9); backdrop-filter: blur(20px);
-            display: flex; align-items: center; justify-content: space-between; padding: 0 24px 10px;
+            flex-shrink: 0; /* 禁止压缩 */
+            height: 90px; 
+            background: rgba(255,255,255,0.95); /* 提高不透明度防止内容透出干扰 */
+            backdrop-filter: blur(20px);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
             border-top: 1px solid var(--divider);
-            transform: translateY(100%); transition: 0.4s var(--ease-bounce);
             z-index: 1000;
+            /* 适配 iPhone X+ 底部横条 */
+            padding-bottom: env(safe-area-inset-bottom);
+            box-sizing: content-box; /* 保证 padding 不吃掉 height */
+            /* 动画控制 */
+            transition: transform 0.3s var(--ease-bounce);
+            transform: translateY(100%); 
+            position: absolute; bottom: 0; left: 0; right: 0; /* 保持绝对定位以便隐藏 */
         }
         .quiz-footer.show { transform: translateY(0); }
 
         .btn-circle {
             width: 48px; height: 48px; border-radius: 50%; background: #F2F2F7;
             display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
-            cursor: pointer; transition: 0.2s; color: var(--text-main);
+            cursor: pointer; transition: 0.2s; color: var(--text-main); flex-shrink: 0;
         }
         .btn-circle:active { transform: scale(0.9); background: #E5E5EA; }
         
@@ -149,13 +176,13 @@
             border-radius: 100px; font-weight: 600; font-size: 1rem;
             box-shadow: 0 8px 20px rgba(0,0,0,0.2); cursor: pointer;
             transition: all 0.3s var(--ease-fluid); min-width: 140px;
+            white-space: nowrap; /* 防止文字换行 */
         }
         .btn-main:active { transform: scale(0.96); }
         .btn-main.submit-mode { background: var(--accent); box-shadow: 0 8px 20px rgba(0,122,255,0.3); }
         .btn-main:disabled { opacity: 0.3; cursor: default; transform: none; box-shadow: none; }
 
         /* --- 结果页 --- */
-        #view-result { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
         .result-score-box { flex-shrink: 0; padding: 20px 20px 30px; text-align: center; background: var(--bg-body); z-index: 5; }
         .final-score { font-size: 3.5rem; font-weight: 800; line-height: 1; color: var(--text-main); margin-bottom: 15px; }
         
@@ -179,6 +206,7 @@
         .gallery-ctrl {
             flex-shrink: 0; height: 80px; display: flex; align-items: center; justify-content: center; gap: 20px;
             background: #fff; border-top: 1px solid var(--divider); z-index: 10;
+            padding-bottom: env(safe-area-inset-bottom);
         }
         .page-select {
             background: #F2F2F7; border: none; padding: 10px 20px; border-radius: 14px;
@@ -207,14 +235,24 @@
         .btn-cancel { background: #F2F2F7; color: var(--text-main); }
         .btn-confirm { background: var(--error); color: #fff; }
 
-        /* 解析面板 */
+        /* 解析面板 - 限制高度并允许内部滚动 */
         .sheet-modal {
-            position: fixed; bottom: 0; left: 0; right: 0; max-width:600px; margin:0 auto;
+            position: fixed; bottom: 0; left: 0; right: 0; 
+            max-width: 600px; margin: 0 auto;
+            max-height: 70dvh; /* 限制最大高度，防止占满屏幕 */
             background: #fff; border-radius: 32px 32px 0 0; padding: 24px;
             box-shadow: 0 -10px 60px rgba(0,0,0,0.12);
-            transform: translateY(110%); transition: 0.5s var(--ease-bounce); z-index: 2000;
+            transform: translateY(110%); transition: 0.5s var(--ease-bounce); 
+            z-index: 2000;
+            display: flex; flex-direction: column;
+            padding-bottom: max(24px, env(safe-area-inset-bottom));
         }
         .sheet-modal.show { transform: translateY(0); }
+        #sheetContent { 
+            overflow-y: auto; /* 内部滚动 */
+            -webkit-overflow-scrolling: touch;
+            line-height: 1.6; color: #333; 
+        }
 
     </style>
 </head>
@@ -251,10 +289,10 @@
             <input type="file" id="fileInput" accept=".json" style="display:none" onchange="importFile(this)">
         </div>
         
-        <div class="version-tag">Version 3.2</div>
+        <div class="version-tag">Version 3.3 Mobile Fix</div>
     </div>
 
-    <div id="view-quiz" class="view-container" style="padding-top:0">
+    <div id="view-quiz" class="view-container">
         <div class="navbar" style="position:sticky; top:0; margin:0 -20px 20px; background:rgba(255,255,255,0.85); backdrop-filter:blur(20px)">
             <div class="nav-btn" onclick="tryExit()">✕ 退出 (Esc)</div>
             <div class="nav-title" id="modeTitle">模拟中</div>
@@ -277,7 +315,7 @@
         <button class="btn-main" id="btnAction" onclick="handleAction()" disabled>提交答案</button>
     </div>
 
-    <div id="view-result" class="view-container" style="padding:0; inset:0; z-index:20">
+    <div id="view-result" class="view-container">
         <div class="navbar">
             <div class="nav-btn" onclick="goHome()">⌂ 主页</div>
             <div class="nav-title">成绩单</div>
@@ -319,11 +357,11 @@
     </div>
 
     <div id="sheetModal" class="sheet-modal">
-        <div style="display:flex; justify-content:space-between; margin-bottom:20px">
+        <div style="display:flex; justify-content:space-between; margin-bottom:20px; flex-shrink:0">
             <span style="font-weight:700; color:#34C759">✅ 正确答案</span>
             <span onclick="toggleAnalysis()" style="cursor:pointer; padding:5px; color:#999">↓</span>
         </div>
-        <div id="sheetContent" style="line-height:1.6; color:#333; max-height:40vh; overflow-y:auto"></div>
+        <div id="sheetContent"></div>
     </div>
 
 </div>
@@ -336,32 +374,26 @@
         startTime: 0, endTime: 0 
     };
     let REVIEW = { list:[], idx:0 };
-    
-    // 状态管理
-    let STATE = {
-        homeFocus: 0, // 0:练习, 1:模拟
-        isConfirming: false
-    };
+    let STATE = { homeFocus: 0, isConfirming: false };
 
     window.onload = () => {
         fetch(QUESTION_FILE + '?t=' + Date.now()).then(r=>r.json()).then(d=>initDB(d)).catch(()=>{
-            const c = localStorage.getItem('cuc_db_v3_2');
+            const c = localStorage.getItem('cuc_db_v3_3');
             if(c) initDB(JSON.parse(c));
         });
 
         document.addEventListener('keydown', (e) => {
+            // 获取当前显示的视图（注意：现在是用display控制，所以检测style或class）
             const isHome = document.getElementById('view-home').classList.contains('active');
             const isQuiz = document.getElementById('view-quiz').classList.contains('active');
             const isResult = document.getElementById('view-result').classList.contains('active');
 
-            // 1. 退出框
             if (STATE.isConfirming) {
                 if (e.key === 'Escape') { e.preventDefault(); confirmExit(); } 
                 if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); closeConfirm(); } 
                 return;
             }
 
-            // 2. 首页
             if (isHome) {
                 if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                     e.preventDefault();
@@ -374,28 +406,20 @@
                 }
             }
 
-            // 3. 答题页
             else if (isQuiz) {
-                // 上下键选择
-                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                    e.preventDefault();
+                if (['1','2','3','4'].includes(e.key)) {
+                    const idx = parseInt(e.key) - 1;
                     const q = EXAM.qs[EXAM.idx];
-                    let curr = EXAM.ans[EXAM.idx];
-                    if (curr === undefined) curr = e.key === 'ArrowDown' ? -1 : 0;
-                    let next = e.key === 'ArrowDown' ? curr + 1 : curr - 1;
-                    // 循环选择
-                    if (next < 0) next = q.options.length - 1;
-                    if (next >= q.options.length) next = 0;
-                    handleOptionClick(next);
+                    if (q && idx < q.options.length) handleOptionClick(idx);
                 }
                 // 空格键：提交/解析/下一题
                 if (e.key === ' ' || e.key === 'Spacebar') { 
                     e.preventDefault();
                     if (EXAM.mode === 'practice') {
-                        if (!EXAM.isSubmitted) handleAction(); // 提交
-                        else toggleAnalysis(); // 切换解析
+                        if (!EXAM.isSubmitted) handleAction(); 
+                        else toggleAnalysis(); 
                     } else {
-                        handleAction(); // 模拟模式下一题
+                        handleAction(); 
                     }
                 }
                 // 右箭头：下一题
@@ -407,11 +431,20 @@
                         nextQ();
                     }
                 }
-                // ESC
+                // 上下键选择
+                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const q = EXAM.qs[EXAM.idx];
+                    let curr = EXAM.ans[EXAM.idx];
+                    if (curr === undefined) curr = e.key === 'ArrowDown' ? -1 : 0;
+                    let next = e.key === 'ArrowDown' ? curr + 1 : curr - 1;
+                    if (next < 0) next = q.options.length - 1;
+                    if (next >= q.options.length) next = 0;
+                    handleOptionClick(next);
+                }
                 if (e.key === 'Escape') tryExit();
             } 
 
-            // 4. 结果页
             else if (isResult) {
                 if (e.key === 'ArrowLeft') moveGallery(-1);
                 if (e.key === 'ArrowRight') moveGallery(1);
@@ -428,27 +461,18 @@
 
     function initDB(data) {
         DB = data;
-        localStorage.setItem('cuc_db_v3_2', JSON.stringify(DB));
+        localStorage.setItem('cuc_db_v3_3', JSON.stringify(DB));
         document.getElementById('statusText').innerText = `✅ 已加载 ${DB.length} 题`;
         document.getElementById('statusText').style.color = '#34C759';
     }
 
-    /* --- 首页交互 --- */
-    function setHomeFocus(idx) {
-        STATE.homeFocus = idx;
-        updateHomeFocus();
-    }
-
+    function setHomeFocus(idx) { STATE.homeFocus = idx; updateHomeFocus(); }
     function updateHomeFocus() {
         document.getElementById('mode-0').classList.toggle('focus', STATE.homeFocus === 0);
         document.getElementById('mode-1').classList.toggle('focus', STATE.homeFocus === 1);
     }
-    
-    function selectMode(idx) {
-        startExam(idx === 0 ? 'practice' : 'sim');
-    }
+    function selectMode(idx) { startExam(idx === 0 ? 'practice' : 'sim'); }
 
-    /* --- 核心逻辑 --- */
     function generatePaper() {
         const structure = [{type:'文学',c:33}, {type:'历史',c:19}, {type:'哲学',c:13}];
         let paper = [];
@@ -477,7 +501,7 @@
         document.getElementById('modeTitle').innerText = mode==='practice' ? '练习模式' : '全真模拟';
         document.getElementById('btnPrevQ').style.visibility = mode==='practice' ? 'visible' : 'hidden';
         
-        EXAM.timer = 90; // Logic duration is 90s
+        EXAM.timer = 90; 
         
         switchView('view-quiz');
         document.getElementById('quizFooter').classList.add('show');
@@ -512,6 +536,8 @@
         updateButtonState();
 
         if(EXAM.mode === 'sim') { EXAM.timer = 90; updateTimerUI(); }
+        // 每次渲染题目时滚动到顶部
+        document.getElementById('view-quiz').scrollTop = 0;
     }
 
     function handleOptionClick(i) {
@@ -556,7 +582,6 @@
                 ab.style.opacity = 0; ab.style.pointerEvents = 'none';
             }
         } else {
-            // 全真模拟 - 强制重置
             btn.innerText = (EXAM.idx === 64) ? "交卷" : "下一题 →";
             btn.className = "btn-main";
             btn.disabled = false;
@@ -615,9 +640,8 @@
     }
 
     function updateTimerUI() {
-        // Sim Mode: Show raw seconds if desired, but sticking to mm:ss as requested
         if (EXAM.mode === 'sim') {
-             document.getElementById('timerDisplay').innerText = EXAM.timer; // 90, 89...
+             document.getElementById('timerDisplay').innerText = EXAM.timer; 
         } else {
              let m = Math.floor(EXAM.timer/60).toString().padStart(2,'0');
              let s = (EXAM.timer%60).toString().padStart(2,'0');
@@ -697,6 +721,7 @@
     }
 
     function switchView(id) {
+        // 使用 classList 控制显隐，替代直接操作 style.display
         document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
         document.getElementById(id).classList.add('active');
     }
