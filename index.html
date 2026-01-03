@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>文史哲通识模拟 v3.2</title>
+    <style>
+        /* --- 设计系统 --- */
+        :root {
+            --primary: #000000;
+            --accent: #007AFF;
+            --accent-soft: rgba(0, 122, 255, 0.08);
+            --success: #34C759;
+            --error: #FF3B30;
+            --bg-body: #F5F5F7;
+            --text-main: #1D1D1F;
+            --text-sub: #86868B;
+            --divider: rgba(0, 0, 0, 0.05);
+            --ease-fluid: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+            background: var(--bg-body);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            overflow: hidden;
+            background-image: radial-gradient(circle at 100% 0%, rgba(0,122,255,0.06) 0%, transparent 40%);
+        }
+
+        .app-shell {
+            width: 100%;
+            max-width: 600px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background: rgba(255,255,255,0.6);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1);
+        }
+
+        @media (min-width: 601px) {
+            body { align-items: center; padding: 20px; }
+            .app-shell { height: 92vh; border-radius: 40px; border: 1px solid rgba(255,255,255,0.5); overflow: hidden; }
+        }
+
+        /* --- 动画 --- */
+        @keyframes wave { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+        /* --- 组件 --- */
+        .navbar {
+            flex-shrink: 0;
+            height: 60px; padding: 0 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--divider); z-index: 100;
+            background: rgba(255,255,255,0.5);
+        }
+        .nav-btn { cursor: pointer; padding: 10px; color: var(--accent); font-weight: 500; transition:0.2s; }
+        .nav-btn:active { opacity: 0.5; }
+        .nav-title { font-weight: 600; font-size: 1.1rem; }
+
+        .view-container {
+            position: absolute; inset: 60px 0 0 0; padding: 20px;
+            overflow-y: auto; overflow-x: hidden;
+            opacity: 0; pointer-events: none; transform: scale(0.98);
+            transition: 0.4s var(--ease-fluid);
+        }
+        .view-container.active { opacity: 1; pointer-events: auto; transform: scale(1); z-index: 10; }
+
+        /* --- 首页 --- */
+        .hero { text-align: center; padding: 50px 0 30px; position: relative; }
+        .hero-icon { font-size: 4.5rem; display: inline-block; animation: wave 4s ease-in-out infinite; margin-bottom: 15px; }
+        .version-tag {
+            position: absolute; bottom: 20px; left: 0; right: 0;
+            text-align: center; color: #BBB; font-size: 0.8rem; font-family: "SF Mono", monospace;
+            pointer-events: none;
+        }
+        
+        .mode-card {
+            background: #fff; border-radius: 24px; padding: 24px; margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03); cursor: pointer;
+            transition: 0.2s var(--ease-fluid); border: 2px solid transparent;
+            display: flex; align-items: center; gap: 15px;
+        }
+        .mode-card:active { transform: scale(0.97); }
+        .mode-card.focus { 
+            border-color: var(--accent); background: var(--accent-soft); 
+            transform: translateY(-3px); box-shadow: 0 12px 24px rgba(0,122,255,0.15);
+        }
+        .mode-icon { font-size: 2rem; }
+
+        /* --- 答题页 --- */
+        .question-box { margin-bottom: 120px; animation: fadeIn 0.4s var(--ease-fluid); }
+        .q-meta { display: flex; justify-content: space-between; margin-bottom: 20px; color: var(--text-sub); font-size: 0.9rem; font-weight: 600; }
+        .q-text { font-size: 1.25rem; font-weight: 700; line-height: 1.5; margin-bottom: 30px; }
+        
+        .option {
+            background: #fff; padding: 18px 20px; border-radius: 18px; margin-bottom: 14px;
+            border: 2px solid transparent; cursor: pointer; position: relative;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02); font-weight: 500;
+            transition: all 0.3s var(--ease-fluid); display: flex;
+        }
+        .key-hint {
+            display: inline-block; width: 20px; height: 20px; border: 1px solid #ddd; 
+            border-radius: 4px; color: #999; font-size: 0.7rem; text-align: center; line-height: 18px;
+            margin-right: 12px; margin-top: 2px;
+        }
+        .option:hover { background: #FCFCFD; }
+        .option:active { transform: scale(0.98); }
+
+        .option.selected {
+            border-color: var(--accent); background: var(--accent-soft); color: var(--accent);
+            transform: scale(1.02); box-shadow: 0 8px 24px rgba(0,122,255,0.15); z-index: 2;
+        }
+        .option.selected .key-hint { border-color: var(--accent); color: var(--accent); }
+
+        .option.correct { background: rgba(52, 199, 89, 0.1); border-color: var(--success); color: #006400; transform: none; }
+        .option.wrong { background: rgba(255, 59, 48, 0.1); border-color: var(--error); color: #8B0000; transform: none; }
+        .option.disabled { pointer-events: none; opacity: 0.8; }
+
+        .quiz-footer {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            height: 90px; background: rgba(255,255,255,0.9); backdrop-filter: blur(20px);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 24px 10px;
+            border-top: 1px solid var(--divider);
+            transform: translateY(100%); transition: 0.4s var(--ease-bounce);
+            z-index: 1000;
+        }
+        .quiz-footer.show { transform: translateY(0); }
+
+        .btn-circle {
+            width: 48px; height: 48px; border-radius: 50%; background: #F2F2F7;
+            display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+            cursor: pointer; transition: 0.2s; color: var(--text-main);
+        }
+        .btn-circle:active { transform: scale(0.9); background: #E5E5EA; }
+        
+        .btn-main {
+            background: var(--primary); color: #fff; border: none; padding: 14px 32px;
+            border-radius: 100px; font-weight: 600; font-size: 1rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2); cursor: pointer;
+            transition: all 0.3s var(--ease-fluid); min-width: 140px;
+        }
+        .btn-main:active { transform: scale(0.96); }
+        .btn-main.submit-mode { background: var(--accent); box-shadow: 0 8px 20px rgba(0,122,255,0.3); }
+        .btn-main:disabled { opacity: 0.3; cursor: default; transform: none; box-shadow: none; }
+
+        /* --- 结果页 --- */
+        #view-result { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+        .result-score-box { flex-shrink: 0; padding: 20px 20px 30px; text-align: center; background: var(--bg-body); z-index: 5; }
+        .final-score { font-size: 3.5rem; font-weight: 800; line-height: 1; color: var(--text-main); margin-bottom: 15px; }
+        
+        .stats-row { display: flex; justify-content: center; gap: 30px; margin-top: 10px; }
+        .stat-item { text-align: center; }
+        .stat-val { font-size: 1.2rem; font-weight: 700; color: var(--text-main); font-family: "SF Mono", monospace; }
+        .stat-label { font-size: 0.8rem; color: var(--text-sub); margin-top: 2px; }
+        
+        .gallery-container { flex: 1; position: relative; width: 100%; overflow: hidden; }
+        .review-card {
+            position: absolute; top: 10px; bottom: 20px; left: 20px; right: 20px;
+            background: #fff; border-radius: 28px; padding: 30px;
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.15);
+            display: flex; flex-direction: column;
+            transition: 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+            opacity: 0; transform: translateX(100%) scale(0.95);
+        }
+        .review-card.active { opacity: 1; transform: translateX(0) scale(1); z-index: 2; }
+        .review-card.prev { opacity: 0; transform: translateX(-100%) scale(0.95); z-index: 1; }
+        
+        .gallery-ctrl {
+            flex-shrink: 0; height: 80px; display: flex; align-items: center; justify-content: center; gap: 20px;
+            background: #fff; border-top: 1px solid var(--divider); z-index: 10;
+        }
+        .page-select {
+            background: #F2F2F7; border: none; padding: 10px 20px; border-radius: 14px;
+            font-weight: 600; color: var(--text-main); font-size: 1rem; outline: none;
+        }
+
+        /* --- 模态框 --- */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: 0.3s;
+            backdrop-filter: blur(5px);
+        }
+        .modal-overlay.show { opacity: 1; pointer-events: auto; }
+        
+        .confirm-box {
+            background: #fff; width: 85%; max-width: 320px; border-radius: 24px;
+            padding: 24px; text-align: center; transform: scale(0.9); transition: 0.3s var(--ease-bounce);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .modal-overlay.show .confirm-box { transform: scale(1); }
+        .confirm-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
+        .confirm-desc { color: var(--text-sub); font-size: 0.9rem; margin-bottom: 24px; }
+        .confirm-actions { display: flex; gap: 12px; }
+        .confirm-btn { flex: 1; padding: 12px; border-radius: 14px; font-weight: 600; border: none; cursor: pointer; }
+        .btn-cancel { background: #F2F2F7; color: var(--text-main); }
+        .btn-confirm { background: var(--error); color: #fff; }
+
+        /* 解析面板 */
+        .sheet-modal {
+            position: fixed; bottom: 0; left: 0; right: 0; max-width:600px; margin:0 auto;
+            background: #fff; border-radius: 32px 32px 0 0; padding: 24px;
+            box-shadow: 0 -10px 60px rgba(0,0,0,0.12);
+            transform: translateY(110%); transition: 0.5s var(--ease-bounce); z-index: 2000;
+        }
+        .sheet-modal.show { transform: translateY(0); }
+
+    </style>
+</head>
+<body>
+
+<div class="app-shell">
+
+    <div id="view-home" class="view-container active">
+        <div class="hero">
+            <div class="hero-icon">🏛️</div>
+            <h1 style="margin:0; font-size:1.8rem; letter-spacing:-0.5px">文史哲通识模拟</h1>
+        </div>
+
+        <div id="readyArea" style="width:100%">
+            <div id="mode-0" class="mode-card focus" onclick="selectMode(0)" onmouseenter="setHomeFocus(0)">
+                <div class="mode-icon">📖</div>
+                <div>
+                    <h3 style="margin:0 0 4px">练习模式</h3>
+                    <div style="font-size:0.9rem; color:var(--text-sub)">不限时 · 可修改 · 即时解析</div>
+                </div>
+            </div>
+            
+            <div id="mode-1" class="mode-card" onclick="selectMode(1)" onmouseenter="setHomeFocus(1)">
+                <div class="mode-icon">⚡️</div>
+                <div>
+                    <h3 style="margin:0 0 4px">全真模拟</h3>
+                    <div style="font-size:0.9rem; color:var(--text-sub)">90秒/题 · 锁定 · 考场实战</div>
+                </div>
+            </div>
+
+            <div style="text-align:center; margin-top:40px; opacity:0.6; cursor:pointer" onclick="document.getElementById('fileInput').click()">
+                <div id="statusText" style="font-size:0.85rem">📂 导入题库 (JSON)</div>
+            </div>
+            <input type="file" id="fileInput" accept=".json" style="display:none" onchange="importFile(this)">
+        </div>
+        
+        <div class="version-tag">Version 3.2</div>
+    </div>
+
+    <div id="view-quiz" class="view-container" style="padding-top:0">
+        <div class="navbar" style="position:sticky; top:0; margin:0 -20px 20px; background:rgba(255,255,255,0.85); backdrop-filter:blur(20px)">
+            <div class="nav-btn" onclick="tryExit()">✕ 退出 (Esc)</div>
+            <div class="nav-title" id="modeTitle">模拟中</div>
+            <div style="font-family:'SF Mono',monospace; font-weight:600; color:var(--text-sub)" id="timerDisplay">00:00</div>
+        </div>
+
+        <div class="question-box">
+            <div class="q-meta">
+                <span id="qType" style="background:#E5E5EA; padding:3px 10px; border-radius:8px; color:#000">文学</span>
+                <span id="qIdx">1 / 65</span>
+            </div>
+            <div class="q-text" id="qStem">题目加载中...</div>
+            <div id="optionsBox"></div>
+        </div>
+    </div>
+
+    <div id="quizFooter" class="quiz-footer">
+        <div class="btn-circle" id="btnPrevQ" onclick="prevQ()">←</div>
+        <div style="font-weight:600; color:var(--text-sub); cursor:pointer; opacity:0; pointer-events:none; transition:0.3s" id="btnAnalysis" onclick="toggleAnalysis()">💡 解析 (Space)</div>
+        <button class="btn-main" id="btnAction" onclick="handleAction()" disabled>提交答案</button>
+    </div>
+
+    <div id="view-result" class="view-container" style="padding:0; inset:0; z-index:20">
+        <div class="navbar">
+            <div class="nav-btn" onclick="goHome()">⌂ 主页</div>
+            <div class="nav-title">成绩单</div>
+            <div class="nav-btn" onclick="location.reload()">↺</div>
+        </div>
+
+        <div class="result-score-box">
+            <div class="final-score" id="finalScore">0</div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-val" id="resAcc">0%</div>
+                    <div class="stat-label">准确率</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-val" id="resTime">00:00</div>
+                    <div class="stat-label">用时</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="gallery-container" id="galleryStage"></div>
+
+        <div class="gallery-ctrl">
+            <div class="btn-circle" onclick="moveGallery(-1)">←</div>
+            <select id="pageSelect" class="page-select" onchange="jumpToPage(this.value)"></select>
+            <div class="btn-circle" onclick="moveGallery(1)">→</div>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="modal-overlay">
+        <div class="confirm-box">
+            <div class="confirm-title">确定要退出吗？</div>
+            <div class="confirm-desc">当前进度将直接结算<br><span style="font-size:0.8rem; color:#999; margin-top:5px; display:block">(Esc 确认 / Space 取消)</span></div>
+            <div class="confirm-actions">
+                <button class="confirm-btn btn-cancel" onclick="closeConfirm()">取消</button>
+                <button class="confirm-btn btn-confirm" onclick="confirmExit()">退出结算</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sheetModal" class="sheet-modal">
+        <div style="display:flex; justify-content:space-between; margin-bottom:20px">
+            <span style="font-weight:700; color:#34C759">✅ 正确答案</span>
+            <span onclick="toggleAnalysis()" style="cursor:pointer; padding:5px; color:#999">↓</span>
+        </div>
+        <div id="sheetContent" style="line-height:1.6; color:#333; max-height:40vh; overflow-y:auto"></div>
+    </div>
+
+</div>
+
+<script>
+    const QUESTION_FILE = 'questions.json';
+    let DB = [];
+    let EXAM = { 
+        qs:[], ans:{}, idx:0, mode:'practice', timer:0, timerRef:null, isSubmitted: false,
+        startTime: 0, endTime: 0 
+    };
+    let REVIEW = { list:[], idx:0 };
+    
+    // 状态管理
+    let STATE = {
+        homeFocus: 0, // 0:练习, 1:模拟
+        isConfirming: false
+    };
+
+    window.onload = () => {
+        fetch(QUESTION_FILE + '?t=' + Date.now()).then(r=>r.json()).then(d=>initDB(d)).catch(()=>{
+            const c = localStorage.getItem('cuc_db_v3_2');
+            if(c) initDB(JSON.parse(c));
+        });
+
+        document.addEventListener('keydown', (e) => {
+            const isHome = document.getElementById('view-home').classList.contains('active');
+            const isQuiz = document.getElementById('view-quiz').classList.contains('active');
+            const isResult = document.getElementById('view-result').classList.contains('active');
+
+            // 1. 退出框
+            if (STATE.isConfirming) {
+                if (e.key === 'Escape') { e.preventDefault(); confirmExit(); } 
+                if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); closeConfirm(); } 
+                return;
+            }
+
+            // 2. 首页
+            if (isHome) {
+                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    STATE.homeFocus = STATE.homeFocus === 0 ? 1 : 0;
+                    updateHomeFocus();
+                }
+                if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    selectMode(STATE.homeFocus);
+                }
+            }
+
+            // 3. 答题页
+            else if (isQuiz) {
+                // 上下键选择
+                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const q = EXAM.qs[EXAM.idx];
+                    let curr = EXAM.ans[EXAM.idx];
+                    if (curr === undefined) curr = e.key === 'ArrowDown' ? -1 : 0;
+                    let next = e.key === 'ArrowDown' ? curr + 1 : curr - 1;
+                    // 循环选择
+                    if (next < 0) next = q.options.length - 1;
+                    if (next >= q.options.length) next = 0;
+                    handleOptionClick(next);
+                }
+                // 空格键：提交/解析/下一题
+                if (e.key === ' ' || e.key === 'Spacebar') { 
+                    e.preventDefault();
+                    if (EXAM.mode === 'practice') {
+                        if (!EXAM.isSubmitted) handleAction(); // 提交
+                        else toggleAnalysis(); // 切换解析
+                    } else {
+                        handleAction(); // 模拟模式下一题
+                    }
+                }
+                // 右箭头：下一题
+                if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    if (EXAM.mode === 'practice') {
+                        if (EXAM.isSubmitted) nextQ();
+                    } else {
+                        nextQ();
+                    }
+                }
+                // ESC
+                if (e.key === 'Escape') tryExit();
+            } 
+
+            // 4. 结果页
+            else if (isResult) {
+                if (e.key === 'ArrowLeft') moveGallery(-1);
+                if (e.key === 'ArrowRight') moveGallery(1);
+                if (e.key === 'Escape') goHome();
+            }
+        });
+    };
+
+    function importFile(input) {
+        const reader = new FileReader();
+        reader.onload = e => initDB(JSON.parse(e.target.result));
+        reader.readAsText(input.files[0]);
+    }
+
+    function initDB(data) {
+        DB = data;
+        localStorage.setItem('cuc_db_v3_2', JSON.stringify(DB));
+        document.getElementById('statusText').innerText = `✅ 已加载 ${DB.length} 题`;
+        document.getElementById('statusText').style.color = '#34C759';
+    }
+
+    /* --- 首页交互 --- */
+    function setHomeFocus(idx) {
+        STATE.homeFocus = idx;
+        updateHomeFocus();
+    }
+
+    function updateHomeFocus() {
+        document.getElementById('mode-0').classList.toggle('focus', STATE.homeFocus === 0);
+        document.getElementById('mode-1').classList.toggle('focus', STATE.homeFocus === 1);
+    }
+    
+    function selectMode(idx) {
+        startExam(idx === 0 ? 'practice' : 'sim');
+    }
+
+    /* --- 核心逻辑 --- */
+    function generatePaper() {
+        const structure = [{type:'文学',c:33}, {type:'历史',c:19}, {type:'哲学',c:13}];
+        let paper = [];
+        let pool = JSON.parse(JSON.stringify(DB));
+        structure.forEach(req => {
+            let chunk = pool.filter(q => q.type && q.type.includes(req.type));
+            chunk.sort(() => Math.random()-0.5);
+            paper = paper.concat(chunk.slice(0, req.c));
+        });
+        while(paper.length < 65) {
+            let r = DB[Math.floor(Math.random()*DB.length)];
+            if(!paper.includes(r)) paper.push(r);
+        }
+        return paper.slice(0, 65);
+    }
+
+    function startExam(mode) {
+        if(!DB.length) return alert('请先导入题库');
+        EXAM.mode = mode;
+        EXAM.qs = generatePaper();
+        EXAM.ans = {};
+        EXAM.idx = 0;
+        EXAM.isSubmitted = false;
+        EXAM.startTime = Date.now();
+        
+        document.getElementById('modeTitle').innerText = mode==='practice' ? '练习模式' : '全真模拟';
+        document.getElementById('btnPrevQ').style.visibility = mode==='practice' ? 'visible' : 'hidden';
+        
+        EXAM.timer = 90; // Logic duration is 90s
+        
+        switchView('view-quiz');
+        document.getElementById('quizFooter').classList.add('show');
+        startTimer();
+        renderQ();
+    }
+
+    function renderQ() {
+        const q = EXAM.qs[EXAM.idx];
+        EXAM.isSubmitted = false; 
+
+        document.getElementById('qType').innerText = q.type || '综合';
+        document.getElementById('qIdx').innerText = `${EXAM.idx + 1} / 65`;
+        document.getElementById('qStem').innerText = q.q;
+
+        const box = document.getElementById('optionsBox');
+        box.innerHTML = q.options.map((opt, i) => {
+            let txt = opt.includes('.') ? opt.split('.')[1] : opt;
+            return `<div class="option" id="opt-${i}" onclick="handleOptionClick(${i})">
+                <span class="key-hint">${String.fromCharCode(65+i)}</span>${txt}
+            </div>`;
+        }).join('');
+
+        if (EXAM.ans[EXAM.idx] !== undefined) {
+            updateOptionsUI(EXAM.ans[EXAM.idx]);
+            if (EXAM.mode === 'practice') {
+                 EXAM.isSubmitted = true;
+                 updateOptionsUI(EXAM.ans[EXAM.idx]); 
+                 updateButtonState();
+            }
+        }
+        updateButtonState();
+
+        if(EXAM.mode === 'sim') { EXAM.timer = 90; updateTimerUI(); }
+    }
+
+    function handleOptionClick(i) {
+        if(EXAM.mode === 'practice' && EXAM.isSubmitted) return;
+        EXAM.ans[EXAM.idx] = i;
+        updateOptionsUI(i);
+        updateButtonState();
+    }
+
+    function updateOptionsUI(selectedIndex) {
+        const q = EXAM.qs[EXAM.idx];
+        const isShowResult = (EXAM.mode === 'practice' && EXAM.isSubmitted);
+
+        for (let i = 0; i < q.options.length; i++) {
+            const el = document.getElementById(`opt-${i}`);
+            el.className = 'option'; 
+            if (isShowResult) {
+                if (i === q.answer) el.classList.add('correct');
+                else if (i === selectedIndex) el.classList.add('wrong');
+                el.classList.add('disabled');
+            } else {
+                if (i === selectedIndex) el.classList.add('selected');
+            }
+        }
+    }
+
+    function updateButtonState() {
+        const btn = document.getElementById('btnAction');
+        const hasAns = EXAM.ans[EXAM.idx] !== undefined;
+        const ab = document.getElementById('btnAnalysis');
+
+        if (EXAM.mode === 'practice') {
+            if (EXAM.isSubmitted) {
+                btn.innerText = (EXAM.idx === 64) ? "交卷" : "下一题 →";
+                btn.className = "btn-main";
+                btn.disabled = false;
+                ab.style.opacity = 1; ab.style.pointerEvents = 'auto';
+            } else {
+                btn.innerText = "提交答案 (Space)";
+                btn.className = "btn-main submit-mode";
+                btn.disabled = !hasAns; 
+                ab.style.opacity = 0; ab.style.pointerEvents = 'none';
+            }
+        } else {
+            // 全真模拟 - 强制重置
+            btn.innerText = (EXAM.idx === 64) ? "交卷" : "下一题 →";
+            btn.className = "btn-main";
+            btn.disabled = false;
+            ab.style.opacity = 0; ab.style.pointerEvents = 'none';
+        }
+    }
+
+    function handleAction() {
+        if (EXAM.mode === 'practice') {
+            if (!EXAM.isSubmitted) {
+                EXAM.isSubmitted = true;
+                updateOptionsUI(EXAM.ans[EXAM.idx]);
+                updateButtonState();
+            } else {
+                nextQ();
+            }
+        } else {
+            nextQ();
+        }
+    }
+
+    function nextQ() {
+        if(EXAM.idx < 64) { EXAM.idx++; renderQ(); }
+        else finishExam();
+    }
+    
+    function prevQ() {
+        if(EXAM.idx > 0) { EXAM.idx--; renderQ(); }
+    }
+
+    function tryExit() {
+        STATE.isConfirming = true;
+        document.getElementById('confirmModal').classList.add('show');
+    }
+    
+    function closeConfirm() {
+        STATE.isConfirming = false;
+        document.getElementById('confirmModal').classList.remove('show');
+    }
+    
+    function confirmExit() {
+        closeConfirm();
+        finishExam();
+    }
+
+    function startTimer() {
+        clearInterval(EXAM.timerRef);
+        EXAM.timerRef = setInterval(() => {
+            if(EXAM.mode === 'practice') EXAM.timer++;
+            else {
+                EXAM.timer--;
+                if(EXAM.timer <= 0) nextQ();
+            }
+            updateTimerUI();
+        }, 1000);
+    }
+
+    function updateTimerUI() {
+        // Sim Mode: Show raw seconds if desired, but sticking to mm:ss as requested
+        if (EXAM.mode === 'sim') {
+             document.getElementById('timerDisplay').innerText = EXAM.timer; // 90, 89...
+        } else {
+             let m = Math.floor(EXAM.timer/60).toString().padStart(2,'0');
+             let s = (EXAM.timer%60).toString().padStart(2,'0');
+             document.getElementById('timerDisplay').innerText = `${m}:${s}`;
+        }
+    }
+
+    function finishExam() {
+        clearInterval(EXAM.timerRef);
+        EXAM.endTime = Date.now();
+        
+        let correct = 0;
+        REVIEW.list = [];
+        EXAM.qs.forEach((q, i) => {
+            let my = EXAM.ans[i];
+            let isRight = (my === q.answer);
+            if(isRight) correct++;
+            REVIEW.list.push({q, my, idx:i+1, isRight});
+        });
+
+        document.getElementById('finalScore').innerText = Math.round((correct/65)*100);
+        document.getElementById('resAcc').innerText = Math.round((correct/65)*100) + '%';
+        
+        let totalSec = Math.floor((EXAM.endTime - EXAM.startTime) / 1000);
+        let tm = Math.floor(totalSec/60).toString().padStart(2,'0');
+        let ts = (totalSec%60).toString().padStart(2,'0');
+        document.getElementById('resTime').innerText = `${tm}:${ts}`;
+
+        initGallery();
+        switchView('view-result');
+        document.getElementById('quizFooter').classList.remove('show');
+    }
+
+    function initGallery() {
+        const stage = document.getElementById('galleryStage');
+        const select = document.getElementById('pageSelect');
+        stage.innerHTML = REVIEW.list.map((d, i) => `
+            <div class="review-card" id="card-${i}">
+                <div style="color:var(--text-sub); font-size:0.9rem; margin-bottom:10px; display:flex; justify-content:space-between">
+                    <span>第 ${d.idx} 题</span>
+                    <span>${d.isRight ? '🟢 正确' : '🔴 错误'}</span>
+                </div>
+                <div style="font-size:1.15rem; font-weight:700; margin-bottom:20px; line-height:1.5">${d.q.q}</div>
+                <div style="flex:1; overflow-y:auto">
+                    <div style="background:#F2F2F7; padding:12px; border-radius:12px; margin-bottom:15px; font-size:0.95rem">
+                        <span style="color:var(--text-sub)">你的选择：</span>
+                        <span style="font-weight:600; color:${d.isRight?'#34C759':'#FF3B30'}">
+                            ${d.my===undefined?'未作答':d.q.options[d.my]}
+                        </span>
+                    </div>
+                    <div style="border-top:1px dashed #ccc; padding-top:15px; font-size:0.95rem; line-height:1.6; color:#333">
+                        <strong style="color:#34C759">✅ 解析：</strong><br>${d.q.analysis}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        select.innerHTML = REVIEW.list.map((d, i) => `<option value="${i}">第 ${d.idx} 题 ${d.isRight?'✓':'✗'}</option>`).join('');
+        REVIEW.idx = 0;
+        updateGalleryUI();
+    }
+
+    function moveGallery(dir) {
+        let next = REVIEW.idx + dir;
+        if(next < 0 || next >= REVIEW.list.length) return;
+        REVIEW.idx = next;
+        updateGalleryUI();
+    }
+    function jumpToPage(val) { REVIEW.idx = parseInt(val); updateGalleryUI(); }
+    
+    function updateGalleryUI() {
+        document.querySelectorAll('.review-card').forEach((el, i) => {
+            el.className = 'review-card';
+            if(i === REVIEW.idx) el.classList.add('active');
+            else if(i < REVIEW.idx) el.classList.add('prev');
+        });
+        document.getElementById('pageSelect').value = REVIEW.idx;
+    }
+
+    function switchView(id) {
+        document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+    function goHome() { switchView('view-home'); STATE.homeFocus = 0; updateHomeFocus(); }
+    function toggleAnalysis() {
+        if(EXAM.mode !== 'practice') return;
+        const el = document.getElementById('sheetModal');
+        const q = EXAM.qs[EXAM.idx];
+        if(el.classList.contains('show')) el.classList.remove('show');
+        else {
+            document.getElementById('sheetContent').innerHTML = `
+                <div style="margin-bottom:10px; font-weight:600">${q.options[q.answer]}</div>
+                <div>${q.analysis}</div>
+            `;
+            el.classList.add('show');
+        }
+    }
+</script>
+</body>
+</html>
